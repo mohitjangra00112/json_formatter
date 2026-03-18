@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JSON Formatter</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222536;
+      --border: #2e3250;
+      --accent: #7c6fff;
+      --accent2: #5c9eff;
+      --btn-grad: linear-gradient(135deg, #7c6fff, #5c9eff);
+      --text: #e2e8f0;
+      --muted: #8b92b0;
+      --success: #2ecc71;
+      --error: #ff5f72;
+
+      /* syntax colors */
+      --c-key: #82aaff;
+      --c-string: #c3e88d;
+      --c-number: #f78c6c;
+      --c-bool: #ff9cac;
+      --c-null: #c792ea;
+      --c-brace: #f8c555;
+      --c-colon: #89ddff;
+    }
+
+    /* ── Light mode overrides ── */
+    body.light {
+      --bg: #f4f5f9;
+      --surface: #ffffff;
+      --surface2: #eef0f7;
+      --border: #d0d4e8;
+      --text: #1e2030;
+      --muted: #6b7280;
+
+      /* syntax colors – adjusted for light bg */
+      --c-key: #4060d0;
+      --c-string: #2a7c44;
+      --c-number: #c2410c;
+      --c-bool: #9d174d;
+      --c-null: #7c3aed;
+      --c-brace: #b45309;
+      --c-colon: #0284c7;
+    }
+
+    body {
+      transition: background 0.25s, color 0.25s;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--btn-grad);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+
+    .logo h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: var(--btn-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo span {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 2px;
+      display: block;
+      -webkit-text-fill-color: var(--muted);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.68rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── Main layout ── */
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      user-select: none;
+      /* disabled during drag via JS */
+    }
+
+    /* ── Left panel ── */
+    .panel-left {
+      width: 30%;
+      min-width: 200px;
+      max-width: 75%;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    /* ── Draggable splitter ── */
+    .splitter {
+      width: 5px;
+      background: var(--border);
+      cursor: col-resize;
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .splitter:hover,
+    .splitter.dragging {
+      background: var(--accent);
+    }
+
+    /* Grip dots */
+    .splitter::after {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 36px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.18);
+      pointer-events: none;
+    }
+
+    body.light .splitter::after {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .splitter.dragging {
+      box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(124, 111, 255, 0.35);
+    }
+
+    /* ── Right panel ── */
+    .panel-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      min-width: 0;
+    }
+
+    /* ── Panel headers ── */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .panel-title .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .dot-input {
+      background: var(--accent);
+    }
+
+    .dot-output {
+      background: #2ecc71;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ── Icon buttons ── */
+    .icon-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 7px;
+      padding: 5px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(124, 111, 255, 0.08);
+    }
+
+    .icon-btn.danger:hover {
+      border-color: var(--error);
+      color: var(--error);
+      background: rgba(255, 95, 114, 0.08);
+    }
+
+    /* ── Textarea ── */
+    .panel-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    textarea {
+      flex: 1;
+      resize: none;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      padding: 18px;
+      width: 100%;
+      height: 100%;
+      caret-color: var(--accent);
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* ── Format button ── */
+    .format-bar {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+
+    .btn-format {
+      flex: 1;
+      background: var(--btn-grad);
+      border: none;
+      border-radius: 10px;
+      padding: 11px 20px;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(124, 111, 255, 0.3);
+    }
+
+    .btn-format:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(124, 111, 255, 0.45);
+    }
+
+    .btn-format:active {
+      transform: translateY(0);
+    }
+
+    .btn-compress {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 16px;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-compress:hover {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    /* ── Output area ── */
+    #output {
+      flex: 1;
+      overflow: auto;
+      padding: 18px 22px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.85;
+    }
+
+    #output::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    #output::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #output::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    #output::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
+    }
+
+    textarea::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    textarea::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    textarea::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* ── Placeholder state ── */
+    .output-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 14px;
+      color: var(--muted);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .output-placeholder .ph-icon {
+      font-size: 3rem;
+      opacity: 0.35;
+    }
+
+    .output-placeholder p {
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .output-placeholder small {
+      font-size: 0.72rem;
+      opacity: 0.6;
+    }
+
+    /* ── Syntax highlight tokens ── */
+    .jk {
+      color: var(--c-key);
+      font-weight: 500;
+    }
+
+    .js {
+      color: var(--c-string);
+    }
+
+    .jn {
+      color: var(--c-number);
+    }
+
+    .jb {
+      color: var(--c-bool);
+    }
+
+    .jnl {
+      color: var(--c-null);
+    }
+
+    .jp {
+      color: var(--c-brace);
+    }
+
+    /* punctuation: braces, brackets, commas */
+    .jc {
+      color: var(--c-colon);
+    }
+
+    /* colon */
+
+    /* ── Error state ── */
+    .error-msg {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(255, 95, 114, 0.08);
+      border: 1px solid rgba(255, 95, 114, 0.3);
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: var(--error);
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.6;
+      margin: 18px;
+    }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      font-size: 0.68rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .status-ok {
+      color: #2ecc71;
+    }
+
+    .status-err {
+      color: var(--error);
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* ── Indent toggle ── */
+    .indent-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .indent-select:focus {
+      border-color: var(--accent);
+    }
+
+    /* ── Theme toggle button ── */
+    #themeToggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.75rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    #themeToggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .theme-track {
+      width: 30px;
+      height: 16px;
+      background: var(--border);
+      border-radius: 99px;
+      position: relative;
+      transition: background 0.25s;
+    }
+
+    body.light .theme-track {
+      background: var(--accent);
+    }
+
+    .theme-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.25s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    body.light .theme-thumb {
+      transform: translateX(14px);
+    }
+
+    /* ── Fade-in animation ── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animated {
+      animation: fadeUp 0.25s ease;
+    }
+
+    /* ── Copy toast ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 20px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🧩</div>
+      <div>
+        <h1>JSON Formatter</h1>
+        <span>Paste → Format → Done</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="badge">v1.0</div>
+      <button id="themeToggle" title="Toggle light/dark mode">
+        <span id="themeIcon">🌙</span>
+        <span id="themeText">Dark</span>
+        <div class="theme-track">
+          <div class="theme-thumb"></div>
+        </div>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: Input -->
+    <section class="panel-left">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="dot dot-input"></span>
+          Input JSON
+        </div>
+        <div class="action-row">
+          <button class="icon-btn danger" id="clearBtn" title="Clear">✕ Clear</button>
+          <button class="icon-btn" id="sampleBtn" title="Load sample">⚡ Sample</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <textarea id="inputJson" spellcheck="false" placeholder='Paste your JSON here…
+
+Example:
+{"name":"Alice","age":30}'></textarea>
+      </div>
+
+      <div class="format-bar">
+        <button class="btn-format" id="formatBtn">
+          <span>✦</span> Format JSON
+        </button>
+        <button class="btn-compress" id="compressBtn" title="Minify JSON">Minify</button>
+      </div>
+    </section>
+
+    <!-- Draggable splitter -->
+    <div class="splitter" id="splitter" title="Drag to resize"></div>
+
+    <!-- RIGHT: Output -->
+    <section class="panel-right">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="dot dot-output"></span>
+          Formatted Output
+        </div>
+        <div class="action-row">
+          <label for="indentSelect" style="font-size:0.72rem;color:var(--muted);">Indent</label>
+          <select class="indent-select" id="indentSelect">
+            <option value="2">2 spaces</option>
+            <option value="4">4 spaces</option>
+            <option value="tab">Tab</option>
+          </select>
+          <button class="icon-btn" id="copyBtn">📋 Copy</button>
+          <button class="icon-btn" id="downloadBtn">⬇ Download</button>
+        </div>
+      </div>
+
+      <div id="output">
+        <div class="output-placeholder" id="placeholder">
+          <div class="ph-icon">{ }</div>
+          <p>Your formatted JSON will appear here.<br />Paste JSON on the left and click <strong>Format JSON</strong>.
+          </p>
+          <small>Supports arrays, nested objects, strings, numbers, booleans and null.</small>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <span class="status-item" id="statusMsg">Ready</span>
+        <div style="display:flex;gap:16px;">
+          <span class="status-item" id="sizeInfo"></span>
+          <span class="status-item" id="depthInfo"></span>
+          <span class="status-item" id="keysInfo"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Syntax highlighter ───────────────────────────────────────────────────
+    function syntaxHighlight(json) {
+      // Tokenize by walking char by char for reliability
+      let html = '';
+      let i = 0;
+      const len = json.length;
+
+      const peek = () => json[i];
+      const consume = () => json[i++];
+
+      function readString() {
+        let s = '"';
+        let escaped = false;
+        i++; // skip opening quote
+        while (i < len) {
+          const c = json[i++];
+          s += c;
+          if (escaped) { escaped = false; continue; }
+          if (c === '\\') { escaped = true; continue; }
+          if (c === '"') break;
+        }
+        return s;
+      }
+
+      function readLiteral(word) {
+        const slice = json.slice(i, i + word.length);
+        if (slice === word) { i += word.length; return word; }
+        return null;
+      }
+
+      function readNumber() {
+        let s = '';
+        while (i < len && /[\d.\-+eE]/.test(json[i])) s += json[i++];
+        return s;
+      }
+
+      let expectKey = false; // track whether next string is a key
+      const stack = [];
+
+      while (i < len) {
+        const ch = peek();
+
+        if (ch === '"') {
+          const raw = readString();
+          // Determine if it's a key: next non-space char is ':'
+          let j = i;
+          while (j < len && /\s/.test(json[j])) j++;
+          const isKey = json[j] === ':';
+          if (isKey) {
+            html += `<span class="jk">${escapeHtml(raw)}</span>`;
+          } else {
+            html += `<span class="js">${escapeHtml(raw)}</span>`;
+          }
+          continue;
+        }
+
+        if (ch === 't') {
+          const v = readLiteral('true');
+          if (v) { html += `<span class="jb">true</span>`; continue; }
+        }
+        if (ch === 'f') {
+          const v = readLiteral('false');
+          if (v) { html += `<span class="jb">false</span>`; continue; }
+        }
+        if (ch === 'n') {
+          const v = readLiteral('null');
+          if (v) { html += `<span class="jnl">null</span>`; continue; }
+        }
+
+        if (ch === '-' || (ch >= '0' && ch <= '9')) {
+          const num = readNumber();
+          html += `<span class="jn">${num}</span>`;
+          continue;
+        }
+
+        if (ch === ':') {
+          html += `<span class="jc">:</span>`;
+          i++;
+          continue;
+        }
+
+        if ('{}[]'.includes(ch)) {
+          html += `<span class="jp">${ch}</span>`;
+          i++;
+          continue;
+        }
+
+        if (ch === ',') {
+          html += `<span class="jp">,</span>`;
+          i++;
+          continue;
+        }
+
+        // whitespace / newline
+        html += ch === '\n' ? '\n' : ch === '\r' ? '' : ch;
+        i++;
+      }
+
+      return html;
+    }
+
+    // ── Stats ────────────────────────────────────────────────────────────────
+    function getStats(obj, depth = 0) {
+      let keys = 0, maxDepth = depth;
+      if (Array.isArray(obj)) {
+        for (const v of obj) {
+          const r = getStats(v, depth + 1);
+          keys += r.keys;
+          maxDepth = Math.max(maxDepth, r.maxDepth);
+        }
+      } else if (obj !== null && typeof obj === 'object') {
+        for (const [k, v] of Object.entries(obj)) {
+          keys++;
+          const r = getStats(v, depth + 1);
+          keys += r.keys;
+          maxDepth = Math.max(maxDepth, r.maxDepth);
+        }
+      }
+      return { keys, maxDepth };
+    }
+
+    // ── Core format ──────────────────────────────────────────────────────────
+    let lastParsed = null;
+
+    function doFormat() {
+      const raw = $('inputJson').value.trim();
+      const output = $('output');
+      const placeholder = $('placeholder');
+      const statusMsg = $('statusMsg');
+
+      if (!raw) {
+        output.innerHTML = '';
+        output.appendChild(placeholder);
+        placeholder.style.display = '';
+        statusMsg.textContent = 'Ready';
+        statusMsg.className = 'status-item';
+        clearStats();
+        return;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        lastParsed = null;
+        output.innerHTML = `<div class="error-msg">⚠ ${escapeHtml(e.message)}</div>`;
+        statusMsg.innerHTML = '<span class="status-err">✕ Invalid JSON</span>';
+        clearStats();
+        return;
+      }
+
+      lastParsed = parsed;
+      const indentVal = $('indentSelect').value;
+      const indent = indentVal === 'tab' ? '\t' : parseInt(indentVal);
+      const pretty = JSON.stringify(parsed, null, indent);
+
+      const highlighted = syntaxHighlight(pretty);
+      output.innerHTML = `<pre class="animated" style="margin:0;white-space:pre;word-break:break-all;">${highlighted}</pre>`;
+
+      const bytes = new TextEncoder().encode(pretty).length;
+      const sizeStr = bytes >= 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B';
+      const stats = getStats(parsed);
+
+      statusMsg.innerHTML = '<span class="status-ok">✓ Valid JSON</span>';
+      $('sizeInfo').textContent = `Size: ${sizeStr}`;
+      $('depthInfo').textContent = `Depth: ${stats.maxDepth}`;
+      $('keysInfo').textContent = `Keys: ${stats.keys}`;
+    }
+
+    function clearStats() {
+      $('sizeInfo').textContent = '';
+      $('depthInfo').textContent = '';
+      $('keysInfo').textContent = '';
+    }
+
+    // ── Minify ───────────────────────────────────────────────────────────────
+    function doCompress() {
+      const raw = $('inputJson').value.trim();
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        $('inputJson').value = JSON.stringify(parsed);
+        showToast('JSON minified!');
+      } catch (e) {
+        showToast('Invalid JSON — cannot minify');
+      }
+    }
+
+    // ── Sample ───────────────────────────────────────────────────────────────
+    const SAMPLE = {
+      "user": {
+        "id": 1042,
+        "name": "Alice Wonderland",
+        "email": "alice@example.com",
+        "active": true,
+        "score": 98.6,
+        "roles": ["admin", "editor"],
+        "address": {
+          "city": "Wonderland",
+          "zip": "WL-42",
+          "coordinates": { "lat": 51.509865, "lng": -0.118092 }
+        },
+        "lastLogin": null
+      },
+      "meta": {
+        "version": "2.1.0",
+        "generated": "2026-03-18T10:00:00Z",
+        "flags": { "beta": false, "experimental": true }
+      }
+    };
+
+    // ── Toast ────────────────────────────────────────────────────────────────
+    function showToast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    // ── Theme toggle ─────────────────────────────────────────────────────────
+    let isDark = true;
+
+    $('themeToggle').addEventListener('click', () => {
+      isDark = !isDark;
+      document.body.classList.toggle('light', !isDark);
+      $('themeIcon').textContent = isDark ? '🌙' : '☀️';
+      $('themeText').textContent = isDark ? 'Dark' : 'Light';
+    });
+
+    // ── Draggable splitter ────────────────────────────────────────────────────
+    (function () {
+      const splitter = $('splitter');
+      const panelLeft = document.querySelector('.panel-left');
+      const mainEl = document.querySelector('main');
+      let dragging = false;
+      let startX = 0;
+      let startW = 0;
+
+      splitter.addEventListener('mousedown', e => {
+        dragging = true;
+        startX = e.clientX;
+        startW = panelLeft.getBoundingClientRect().width;
+        splitter.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        mainEl.style.userSelect = 'none';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const totalW = mainEl.getBoundingClientRect().width;
+        const delta = e.clientX - startX;
+        const newW = startW + delta;
+        const pct = (newW / totalW) * 100;
+        // Clamp between 20% and 75%
+        const clamped = Math.min(75, Math.max(20, pct));
+        panelLeft.style.width = clamped + '%';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        splitter.classList.remove('dragging');
+        document.body.style.cursor = '';
+        mainEl.style.userSelect = '';
+      });
+
+      // Touch support
+      splitter.addEventListener('touchstart', e => {
+        dragging = true;
+        startX = e.touches[0].clientX;
+        startW = panelLeft.getBoundingClientRect().width;
+        splitter.classList.add('dragging');
+        mainEl.style.userSelect = 'none';
+      }, { passive: true });
+
+      document.addEventListener('touchmove', e => {
+        if (!dragging) return;
+        const totalW = mainEl.getBoundingClientRect().width;
+        const delta = e.touches[0].clientX - startX;
+        const newW = startW + delta;
+        const pct = (newW / totalW) * 100;
+        const clamped = Math.min(75, Math.max(20, pct));
+        panelLeft.style.width = clamped + '%';
+      });
+
+      document.addEventListener('touchend', () => {
+        dragging = false;
+        splitter.classList.remove('dragging');
+        mainEl.style.userSelect = '';
+      });
+    })();
+
+    // ── Events ───────────────────────────────────────────────────────────────
+    $('formatBtn').addEventListener('click', doFormat);
+    $('compressBtn').addEventListener('click', doCompress);
+
+    $('clearBtn').addEventListener('click', () => {
+      $('inputJson').value = '';
+      $('output').innerHTML = '';
+      $('output').appendChild($('placeholder'));
+      $('placeholder').style.display = '';
+      $('statusMsg').textContent = 'Ready';
+      $('statusMsg').className = 'status-item';
+      clearStats();
+      lastParsed = null;
+    });
+
+    $('sampleBtn').addEventListener('click', () => {
+      $('inputJson').value = JSON.stringify(SAMPLE);
+      doFormat();
+      showToast('Sample JSON loaded!');
+    });
+
+    $('copyBtn').addEventListener('click', () => {
+      const raw = $('inputJson').value.trim();
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        const indentVal = $('indentSelect').value;
+        const indent = indentVal === 'tab' ? '\t' : parseInt(indentVal);
+        navigator.clipboard.writeText(JSON.stringify(parsed, null, indent))
+          .then(() => showToast('Copied to clipboard! ✓'))
+          .catch(() => showToast('Copy failed.'));
+      } catch { showToast('Invalid JSON.'); }
+    });
+
+    $('downloadBtn').addEventListener('click', () => {
+      if (!lastParsed) return showToast('Nothing to download.');
+      const indentVal = $('indentSelect').value;
+      const indent = indentVal === 'tab' ? '\t' : parseInt(indentVal);
+      const blob = new Blob([JSON.stringify(lastParsed, null, indent)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'formatted.json';
+      a.click();
+      showToast('Downloaded!');
+    });
+
+    // Re-format on indent change if already formatted
+    $('indentSelect').addEventListener('change', () => {
+      if (lastParsed !== null) doFormat();
+    });
+
+    // Keyboard shortcut: Ctrl+Enter or Cmd+Enter
+    $('inputJson').addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        doFormat();
+      }
+    });
+
+    // Auto-format on paste
+    $('inputJson').addEventListener('paste', () => {
+      setTimeout(doFormat, 50);
+    });
+  </script>
+</body>
+
+</html>
