@@ -140,8 +140,6 @@
       display: flex;
       flex: 1;
       overflow: hidden;
-      user-select: none;
-      /* disabled during drag via JS */
     }
 
     /* ── Left panel ── */
@@ -368,6 +366,8 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.82rem;
       line-height: 1.85;
+      user-select: text;
+      cursor: text;
     }
 
     #output::-webkit-scrollbar {
